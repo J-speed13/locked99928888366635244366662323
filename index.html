@@ -157,7 +157,8 @@
 
         // AUTH & ENTRY
         window.handleEntry = async () => {
-            const pass = document.getElementById('gate-pass').value;
+            const passInput = document.getElementById('gate-pass');
+            const pass = passInput.value;
             const error = document.getElementById('error-msg');
             const btn = document.getElementById('unlock-btn');
             
@@ -168,12 +169,18 @@
                 error.classList.add('hidden');
                 
                 try {
+                    // Sign in first
+                    let userCredential;
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
+                        userCredential = await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                        await signInAnonymously(auth);
+                        userCredential = await signInAnonymously(auth);
                     }
+                    
+                    // Once signed in, the onAuthStateChanged listener below will handle UI setup
+                    authenticatedUser = userCredential.user;
                 } catch (e) {
+                    console.error("Auth error:", e);
                     error.textContent = "Network Error: Retrying...";
                     error.classList.remove('hidden');
                     btn.disabled = false;
@@ -182,6 +189,7 @@
             } else {
                 error.textContent = "Access Denied: Invalid Key";
                 error.classList.remove('hidden');
+                passInput.value = '';
             }
         };
 
@@ -190,12 +198,13 @@
             try {
                 if (unsubscribeShouts) unsubscribeShouts();
                 await signOut(auth);
-                location.reload(); // Hard reset for security
+                location.reload(); 
             } catch (e) {
                 console.error("Lock error:", e);
             }
         };
 
+        // This listener is the source of truth for UI state
         onAuthStateChanged(auth, (user) => {
             if (user && currentUserName) {
                 authenticatedUser = user;
@@ -204,10 +213,18 @@
         });
 
         function setupUI() {
-            document.getElementById('entry-screen').style.display = 'none';
+            const entryScreen = document.getElementById('entry-screen');
             const mainApp = document.getElementById('main-app');
+            
+            // Hide entry screen
+            entryScreen.style.display = 'none';
+            
+            // Show main app
             mainApp.classList.remove('hidden');
-            setTimeout(() => mainApp.classList.remove('opacity-0'), 10);
+            // Small delay to trigger CSS transition
+            requestAnimationFrame(() => {
+                mainApp.classList.remove('opacity-0');
+            });
             
             document.getElementById('user-display-name').textContent = currentUserName;
             const avatarUrl = `https://api.dicebear.com/7.x/shapes/svg?seed=${currentUserName}`;
@@ -223,7 +240,11 @@
             if (unsubscribeShouts) unsubscribeShouts();
 
             const nodeName = STORAGE_NODES[activeNodeIndex];
-            document.getElementById('active-node-text').textContent = `Node ${activeNodeIndex + 1}`;
+            const nodeIndicatorText = document.getElementById('active-node-text');
+            const nodeIndicator = document.getElementById('node-indicator');
+            
+            if (nodeIndicatorText) nodeIndicatorText.textContent = `Node ${activeNodeIndex + 1}`;
+            if (nodeIndicator) nodeIndicator.classList.remove('hidden');
             
             // Path structure for public data
             const collectionPath = collection(db, 'artifacts', appId, 'public', 'data', nodeName);
@@ -274,7 +295,12 @@
             const text = input.value.trim();
             if (!text) return;
 
+            const btn = document.querySelector('button[onclick="submitShout()"]');
+            const originalText = btn.textContent;
+            
             try {
+                btn.disabled = true;
+                btn.textContent = "SENDING...";
                 const nodeName = STORAGE_NODES[activeNodeIndex];
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', nodeName), {
                     text,
@@ -285,6 +311,9 @@
                 input.value = '';
             } catch (e) {
                 console.error("Submission error:", e);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         };
     </script>
