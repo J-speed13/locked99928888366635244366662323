@@ -41,40 +41,80 @@
             box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
             transform: scale(1.1);
         }
+
+        .keypad-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1rem;
+            font-weight: 800;
+            font-size: 1.25rem;
+            transition: all 0.2s;
+            color: #94a3b8;
+        }
+        .keypad-btn:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+            background: #0f172a;
+        }
+        .keypad-btn:active {
+            transform: scale(0.9);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .shake-ui {
+            animation: shake 0.4s ease-in-out;
+        }
     </style>
 </head>
 <body>
 
     <!-- Gatekeeper Screen -->
     <div id="entry-screen">
-        <div class="bg-[#1e293b] p-10 rounded-[2rem] shadow-2xl w-full max-w-md text-center border border-slate-700">
+        <div id="entry-card" class="bg-[#1e293b] p-10 rounded-[2rem] shadow-2xl w-full max-w-md text-center border border-slate-700">
             <div class="gradient-bg w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-900/20 rotate-3">
                 <i class="fa-solid fa-layer-group text-white text-3xl"></i>
             </div>
             <h1 class="text-3xl font-black uppercase tracking-tight mb-2">Grafics Hub</h1>
-            <p class="text-slate-400 text-sm mb-10 font-medium">Secure Terminal Access</p>
+            <p class="text-slate-400 text-sm mb-6 font-medium">Secure Terminal Access</p>
             
-            <div class="space-y-8">
-                <!-- Passcode Visual Dots -->
-                <div class="flex justify-center gap-4 py-4">
+            <div class="space-y-6">
+                <!-- Passcode Visual Dots (Updated to 6 for the longest code) -->
+                <div class="flex justify-center gap-4 py-2">
                     <div class="passcode-dot" id="dot-0"></div>
                     <div class="passcode-dot" id="dot-1"></div>
                     <div class="passcode-dot" id="dot-2"></div>
                     <div class="passcode-dot" id="dot-3"></div>
                     <div class="passcode-dot" id="dot-4"></div>
                     <div class="passcode-dot" id="dot-5"></div>
-                    <div class="passcode-dot" id="dot-6"></div>
-                    <div class="passcode-dot" id="dot-7"></div>
                 </div>
 
-                <!-- Hidden Input to catch typing -->
-                <input type="password" id="gate-pass" autocomplete="off" 
-                    class="absolute opacity-0 pointer-events-none" autofocus>
-                
-                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
-                    Type your passcode to initialize
+                <!-- Clickable Keypad Grid -->
+                <div class="grid grid-cols-3 gap-3 max-w-[220px] mx-auto">
+                    <button class="keypad-btn" onclick="pressKey('1')">1</button>
+                    <button class="keypad-btn" onclick="pressKey('2')">2</button>
+                    <button class="keypad-btn" onclick="pressKey('3')">3</button>
+                    <button class="keypad-btn" onclick="pressKey('4')">4</button>
+                    <button class="keypad-btn" onclick="pressKey('5')">5</button>
+                    <button class="keypad-btn" onclick="pressKey('6')">6</button>
+                    <button class="keypad-btn" onclick="pressKey('7')">7</button>
+                    <button class="keypad-btn" onclick="pressKey('8')">8</button>
+                    <button class="keypad-btn" onclick="pressKey('9')">9</button>
+                    <button class="keypad-btn col-start-2" onclick="pressKey('0')">0</button>
+                    <button class="keypad-btn text-rose-500" onclick="clearKeys()">
+                        <i class="fa-solid fa-rotate-left text-sm"></i>
+                    </button>
                 </div>
 
+                <!-- Submit Button -->
                 <button onclick="handleEntry()" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
                     Initialize Hub
                 </button>
@@ -173,44 +213,47 @@
         const STORAGE_NODES = ['creative_main', 'creative_node_b', 'creative_fallback'];
         let activeNodeIndex = 0;
 
+        // Updated Passcodes
         const PASS_MAP = {
-            'Jasper13': 'Jasper',
-            'James47': 'James',
-            'User1': 'Alpha',
-            'User2': 'Beta'
+            '19837': 'James',
+            '20147': 'Jasper'
         };
 
         let currentUserName = "";
         let authenticatedUser = null;
         let unsubscribeShouts = null;
+        let enteredPasscode = "";
 
-        // UI Logic for Dots
-        const passInput = document.getElementById('gate-pass');
-        const dots = [0,1,2,3,4,5,6,7].map(i => document.getElementById(`dot-${i}`));
+        const dots = [0,1,2,3,4,5].map(i => document.getElementById(`dot-${i}`));
 
-        passInput.addEventListener('input', (e) => {
-            const val = e.target.value;
+        window.pressKey = (num) => {
+            if (enteredPasscode.length < 6) {
+                enteredPasscode += num;
+                updateDots();
+            }
+        };
+
+        window.clearKeys = () => {
+            enteredPasscode = "";
+            updateDots();
+        };
+
+        function updateDots() {
             dots.forEach((dot, i) => {
-                if (i < val.length) {
+                if (i < enteredPasscode.length) {
                     dot.classList.add('active');
                 } else {
                     dot.classList.remove('active');
                 }
             });
-        });
-
-        // Ensure input stays focused for typing
-        document.addEventListener('click', () => {
-            if (document.getElementById('entry-screen').style.display !== 'none') {
-                passInput.focus();
-            }
-        });
+        }
 
         // AUTH & ENTRY
         window.handleEntry = async () => {
-            const pass = passInput.value;
+            const pass = enteredPasscode;
             const error = document.getElementById('error-msg');
             const btn = document.getElementById('unlock-btn');
+            const card = document.getElementById('entry-card');
             
             if (PASS_MAP[pass]) {
                 btn.disabled = true;
@@ -236,13 +279,10 @@
             } else {
                 error.textContent = "Access Denied: Invalid Key";
                 error.classList.remove('hidden');
-                passInput.value = '';
-                dots.forEach(dot => dot.classList.remove('active'));
+                clearKeys();
                 
-                // Shake effect for feedback
-                const container = document.querySelector('#entry-screen > div');
-                container.classList.add('animate-bounce');
-                setTimeout(() => container.classList.remove('animate-bounce'), 500);
+                card.classList.add('shake-ui');
+                setTimeout(() => card.classList.remove('shake-ui'), 400);
             }
         };
 
