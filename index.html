@@ -3,430 +3,343 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafics Hub - Creative Feed</title>
+    <title>Grafics Hub - MQTT Resilience</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #f8fafc; }
-        .hub-border { border: 1px solid #1e293b; }
-        .card-hover:hover { border-color: #38bdf8; background-color: #1e293b; }
-        .sidebar-accent { background-color: #1e293b; width: 4px; }
-        .hub-brand { color: #38bdf8; font-weight: 900; letter-spacing: -0.5px; }
+        body { background-color: #0f172a; font-family: 'Inter', sans-serif; color: #f8fafc; overflow-x: hidden; }
+        .gradient-bg { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); }
         
-        #entry-screen {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            background: #0f172a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gradient-bg {
-            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-        }
-
-        /* Passcode Dot Styling */
         .passcode-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            border: 2px solid #334155;
-            transition: all 0.2s ease;
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid #334155; transition: all 0.2s ease;
         }
         .passcode-dot.active {
-            background-color: #38bdf8;
-            border-color: #38bdf8;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
-            transform: scale(1.1);
+            background-color: #38bdf8; border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5); transform: scale(1.1);
         }
 
         .keypad-btn {
-            background: #1e293b;
-            border: 1px solid #334155;
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 1rem;
-            font-weight: 800;
-            font-size: 1.25rem;
-            transition: all 0.2s;
-            color: #94a3b8;
-            cursor: pointer;
-            user-select: none;
+            background: #1e293b; border: 1px solid #334155;
+            width: 64px; height: 64px; border-radius: 1rem;
+            font-weight: 800; color: #94a3b8; transition: all 0.2s;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
-        .keypad-btn:hover {
-            border-color: #38bdf8;
-            color: #38bdf8;
-            background: #0f172a;
-        }
-        .keypad-btn:active {
-            transform: scale(0.9);
-        }
+        .keypad-btn:hover { border-color: #38bdf8; color: #38bdf8; background: #111827; }
+        .keypad-btn:active { transform: scale(0.9); }
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
         }
-        .shake-ui {
-            animation: shake 0.4s ease-in-out;
-        }
+        .shake { animation: shake 0.4s ease-in-out; }
     </style>
 </head>
 <body>
 
-    <!-- Gatekeeper Screen -->
-    <div id="entry-screen">
-        <div id="entry-card" class="bg-[#1e293b] p-10 rounded-[2rem] shadow-2xl w-full max-w-md text-center border border-slate-700">
-            <div class="gradient-bg w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-900/20 rotate-3">
-                <i class="fa-solid fa-layer-group text-white text-3xl"></i>
+    <!-- Entry Portal -->
+    <div id="entry-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex items-center justify-center p-6">
+        <div id="entry-card" class="bg-[#1e293b] p-8 rounded-[2.5rem] border border-slate-800 w-full max-w-sm text-center shadow-2xl">
+            <div class="gradient-bg w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3">
+                <i class="fa-solid fa-satellite-dish text-white text-2xl"></i>
             </div>
-            <h1 class="text-3xl font-black uppercase tracking-tight mb-2">Grafics Hub</h1>
-            <p class="text-slate-400 text-sm mb-6 font-medium">Secure Terminal Access</p>
+            <h1 class="text-2xl font-black uppercase tracking-tight mb-1">Authorization</h1>
+            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">Secure Access Terminal</p>
             
-            <div class="space-y-6">
-                <!-- Passcode Visual Dots -->
-                <div class="flex justify-center gap-4 py-2">
-                    <div class="passcode-dot" id="dot-0"></div>
-                    <div class="passcode-dot" id="dot-1"></div>
-                    <div class="passcode-dot" id="dot-2"></div>
-                    <div class="passcode-dot" id="dot-3"></div>
-                    <div class="passcode-dot" id="dot-4"></div>
-                    <div class="passcode-dot" id="dot-5"></div>
-                </div>
-
-                <!-- Clickable Keypad Grid -->
-                <div class="grid grid-cols-3 gap-3 max-w-[220px] mx-auto">
-                    <button type="button" class="keypad-btn" data-key="1">1</button>
-                    <button type="button" class="keypad-btn" data-key="2">2</button>
-                    <button type="button" class="keypad-btn" data-key="3">3</button>
-                    <button type="button" class="keypad-btn" data-key="4">4</button>
-                    <button type="button" class="keypad-btn" data-key="5">5</button>
-                    <button type="button" class="keypad-btn" data-key="6">6</button>
-                    <button type="button" class="keypad-btn" data-key="7">7</button>
-                    <button type="button" class="keypad-btn" data-key="8">8</button>
-                    <button type="button" class="keypad-btn" data-key="9">9</button>
-                    <button type="button" class="keypad-btn col-start-2" data-key="0">0</button>
-                    <button type="button" class="keypad-btn text-rose-500" id="clear-btn">
-                        <i class="fa-solid fa-rotate-left text-sm pointer-events-none"></i>
-                    </button>
-                </div>
-
-                <!-- Submit Button -->
-                <button type="button" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
-                    Initialize Hub
-                </button>
+            <div class="flex justify-center gap-3 mb-8">
+                <div class="passcode-dot" id="dot-0"></div>
+                <div class="passcode-dot" id="dot-1"></div>
+                <div class="passcode-dot" id="dot-2"></div>
+                <div class="passcode-dot" id="dot-3"></div>
+                <div class="passcode-dot" id="dot-4"></div>
+                <div class="passcode-dot" id="dot-5"></div>
             </div>
-            <p id="error-msg" class="text-rose-500 text-xs mt-6 font-bold hidden bg-rose-500/10 py-2 rounded-lg">Access Denied: Invalid Key</p>
+
+            <div class="grid grid-cols-3 gap-3 mb-8 place-items-center">
+                <button class="keypad-btn" onclick="pressKey('1')">1</button>
+                <button class="keypad-btn" onclick="pressKey('2')">2</button>
+                <button class="keypad-btn" onclick="pressKey('3')">3</button>
+                <button class="keypad-btn" onclick="pressKey('4')">4</button>
+                <button class="keypad-btn" onclick="pressKey('5')">5</button>
+                <button class="keypad-btn" onclick="pressKey('6')">6</button>
+                <button class="keypad-btn" onclick="pressKey('7')">7</button>
+                <button class="keypad-btn" onclick="pressKey('8')">8</button>
+                <button class="keypad-btn" onclick="pressKey('9')">9</button>
+                <button class="keypad-btn text-rose-500" onclick="clearKeys()"><i class="fa-solid fa-xmark"></i></button>
+                <button class="keypad-btn" onclick="pressKey('0')">0</button>
+                <button class="keypad-btn text-emerald-500" onclick="validateKey()"><i class="fa-solid fa-check"></i></button>
+            </div>
+
+            <p id="error-msg" class="text-rose-500 text-[10px] font-black uppercase hidden tracking-widest">Access Denied</p>
         </div>
     </div>
 
-    <!-- Main App UI -->
-    <div id="main-app" class="opacity-0 transition-opacity duration-700 hidden">
-        <!-- Navbar -->
-        <nav class="bg-[#0f172a]/80 backdrop-blur-md h-16 border-b border-slate-800 fixed w-full top-0 z-50 flex items-center px-8 justify-between">
+    <!-- Main Workspace -->
+    <div id="main-app" class="hidden opacity-0 transition-opacity duration-1000">
+        <nav class="h-16 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 fixed w-full top-0 z-50 flex items-center justify-between px-6 lg:px-12">
             <div class="flex items-center gap-3">
-                <div class="gradient-bg p-2 rounded-lg">
-                    <i class="fa-solid fa-layer-group text-white text-lg"></i>
-                </div>
-                <span class="text-xl hub-brand uppercase tracking-tighter">Grafics Hub</span>
+                <div class="gradient-bg p-2 rounded-lg"><i class="fa-solid fa-layer-group text-white text-sm"></i></div>
+                <span class="font-black text-lg uppercase tracking-tighter text-sky-400">Grafics Hub</span>
             </div>
-            
-            <div class="flex items-center gap-6">
-                <div id="node-indicator" class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-full border border-slate-700">
-                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span id="active-node-text" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node 1</span>
+
+            <div class="flex items-center gap-4">
+                <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800">
+                    <div id="status-dot" class="w-2 h-2 rounded-full bg-slate-600"></div>
+                    <span id="status-text" class="text-[9px] font-black uppercase text-slate-400">Initializing...</span>
                 </div>
-                
-                <div class="flex items-center gap-3 pl-6 border-l border-slate-800">
-                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700">
-                    <span id="user-display-name" class="text-xs font-black text-slate-200 uppercase"></span>
-                    <button id="logout-btn" class="ml-2 text-slate-500 hover:text-rose-500 transition-colors">
+                <div class="h-8 w-[1px] bg-slate-800 mx-2"></div>
+                <div class="flex items-center gap-3">
+                    <img id="user-avatar" class="w-8 h-8 rounded-full border border-slate-700 bg-slate-800">
+                    <span id="user-name" class="text-xs font-black uppercase tracking-tight hidden sm:block"></span>
+                    <button onclick="location.reload()" class="text-slate-500 hover:text-rose-500 transition-colors">
                         <i class="fa-solid fa-power-off text-sm"></i>
                     </button>
                 </div>
             </div>
         </nav>
 
-        <!-- Content -->
-        <main class="max-w-[1200px] mx-auto px-8 pt-24 flex gap-10">
-            <!-- Sidebar -->
-            <aside class="hidden lg:block w-64 space-y-8">
-                <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
-                    <h4 class="text-slate-500 font-black uppercase text-[10px] tracking-widest mb-6">Asset Network</h4>
+        <div class="max-w-6xl mx-auto px-6 pt-24 pb-12 flex flex-col lg:flex-row gap-8">
+            <aside class="w-full lg:w-64 space-y-6">
+                <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+                    <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Relay Info</h3>
                     <div class="space-y-4">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-circle text-[8px] text-sky-500"></i>
-                            <span class="text-xs font-bold text-slate-300">Global Stream</span>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Mode</span>
+                            <span id="protocol-type" class="text-sky-400 font-bold">Standard</span>
                         </div>
-                        <div class="flex items-center gap-3 opacity-40">
-                            <i class="fa-solid fa-circle text-[8px] text-slate-600"></i>
-                            <span class="text-xs font-bold text-slate-500">Private Vault</span>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Broker</span>
+                            <span id="broker-name" class="text-slate-300 font-bold truncate max-w-[100px]">Checking...</span>
                         </div>
                     </div>
                 </div>
-
-                <div class="p-6 gradient-bg rounded-2xl text-white">
-                    <h5 class="font-black text-xs uppercase mb-2">Pro Tip</h5>
-                    <p class="text-[10px] leading-relaxed opacity-90">Switch between nodes if you experience latency. All creative shouts are synced across the cluster.</p>
+                <div class="p-6 rounded-3xl bg-indigo-500/10 border border-indigo-500/20">
+                    <p class="text-[10px] leading-relaxed text-indigo-200 font-medium">
+                        Resilience mode utilizes <b>EMQX Public Broker</b> (MQTT) to maintain real-time broadcasting when cloud nodes are unstable.
+                    </p>
                 </div>
             </aside>
 
-            <!-- Feed -->
-            <div class="flex-1 space-y-8 pb-20">
-                <div class="bg-[#1e293b] p-6 rounded-3xl border border-slate-800 shadow-xl">
-                    <div class="flex items-start gap-4">
-                        <img id="create-avatar" src="" class="w-12 h-12 rounded-2xl bg-slate-800">
-                        <div class="flex-1 space-y-4">
-                            <textarea id="shout-input" rows="2" placeholder="Describe your next masterpiece..." 
-                                class="w-full bg-[#0f172a] rounded-2xl px-6 py-4 text-sm outline-none border-2 border-transparent focus:border-sky-500 transition-all resize-none"></textarea>
-                            <div class="flex justify-between items-center">
-                                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Post to creative feed</span>
-                                <button id="publish-btn" class="gradient-bg text-white px-10 py-3 rounded-xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">
-                                    PUBLISH
+            <div class="flex-1 space-y-6">
+                <div class="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
+                    <div class="flex gap-4">
+                        <img id="input-avatar" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 shrink-0">
+                        <div class="flex-1">
+                            <textarea id="shout-input" rows="2" placeholder="Broadcasting something new..." 
+                                class="w-full bg-[#0f172a] rounded-2xl p-4 text-sm outline-none border border-transparent focus:border-sky-500 transition-all resize-none mb-4"></textarea>
+                            <div class="flex justify-end">
+                                <button id="publish-btn" onclick="sendShout()" class="gradient-bg px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all">
+                                    Publish Shout
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="shouts-list" class="space-y-6">
-                    <!-- Shouts -->
+                <div id="shouts-container" class="space-y-4">
+                    <!-- Dynamic Content -->
                 </div>
             </div>
-        </main>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables for the hub
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'grafics-hub-v1';
+        // Global State
+        let currentPasscode = "";
+        let currentUser = null;
+        let isFirebaseActive = false;
+        let mqttClient = null;
+        const mqttTopic = "graficshub/public/shouts";
 
-        const STORAGE_NODES = ['creative_main', 'creative_node_b', 'creative_fallback'];
-        let activeNodeIndex = 0;
-
-        const PASS_MAP = {
-            '19837': 'James',
-            '20147': 'Jasper'
+        const PASS_MAP = { '19837': 'James', '201411': 'Jasper' };
+        
+        // Keypad Logic
+        window.pressKey = (num) => {
+            if (currentPasscode.length < 6) {
+                currentPasscode += num;
+                renderDots();
+            }
         };
 
-        let currentUserName = "";
-        let authenticatedUser = null;
-        let unsubscribeShouts = null;
-        let enteredPasscode = "";
+        window.clearKeys = () => {
+            currentPasscode = "";
+            renderDots();
+            document.getElementById('error-msg').classList.add('hidden');
+        };
 
-        const dots = [0,1,2,3,4,5].map(i => document.getElementById(`dot-${i}`));
+        function renderDots() {
+            for(let i=0; i<6; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i < currentPasscode.length) dot.classList.add('active');
+                else dot.classList.remove('active');
+            }
+        }
 
-        // Keypad Logic Helper
-        function updateDots() {
-            dots.forEach((dot, i) => {
-                if (i < enteredPasscode.length) {
-                    dot.classList.add('active');
-                } else {
-                    dot.classList.remove('active');
+        window.validateKey = async () => {
+            const name = PASS_MAP[currentPasscode];
+            if (name) {
+                currentUser = name;
+                initApp();
+            } else {
+                const card = document.getElementById('entry-card');
+                const err = document.getElementById('error-msg');
+                card.classList.add('shake');
+                err.classList.remove('hidden');
+                setTimeout(() => card.classList.remove('shake'), 400);
+                currentPasscode = "";
+                renderDots();
+            }
+        };
+
+        // App Initialization
+        async function initApp() {
+            document.getElementById('entry-screen').classList.add('hidden');
+            const main = document.getElementById('main-app');
+            main.classList.remove('hidden');
+            setTimeout(() => main.classList.remove('opacity-0'), 10);
+
+            const avatar = `https://api.dicebear.com/7.x/identicon/svg?seed=${currentUser}`;
+            document.getElementById('user-avatar').src = avatar;
+            document.getElementById('input-avatar').src = avatar;
+            document.getElementById('user-name').textContent = currentUser;
+
+            // Try Firebase first
+            try {
+                const config = JSON.parse(__firebase_config);
+                const app = initializeApp(config);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'grafics-hub-mqtt';
+
+                await signInAnonymously(auth);
+                isFirebaseActive = true;
+                updateStatus("Cloud Node Online", "emerald");
+                document.getElementById('protocol-type').textContent = "P2P Cloud";
+                document.getElementById('broker-name').textContent = "Firebase";
+
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'shouts'), orderBy('createdAt', 'desc'));
+                onSnapshot(q, (snap) => {
+                    const shouts = [];
+                    snap.forEach(doc => shouts.push(doc.data()));
+                    renderShouts(shouts);
+                }, (err) => {
+                    console.warn("Firebase restricted, moving to MQTT");
+                    initMQTT();
+                });
+
+                window.dbInstance = db;
+                window.appId = appId;
+
+            } catch (e) {
+                console.warn("Firebase Init failed, using MQTT Resilience");
+                initMQTT();
+            }
+        }
+
+        // MQTT Resilience System
+        function initMQTT() {
+            isFirebaseActive = false;
+            updateStatus("Connecting to Relay...", "amber");
+            document.getElementById('protocol-type').textContent = "MQTT Relay";
+            document.getElementById('broker-name').textContent = "EMQX Public";
+
+            // Broker URL as requested
+            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+
+            mqttClient.on('connect', () => {
+                updateStatus("MQTT Node Active", "indigo");
+                mqttClient.subscribe(mqttTopic);
+            });
+
+            mqttClient.on('message', (topic, message) => {
+                if (topic === mqttTopic) {
+                    try {
+                        const newShout = JSON.parse(message.toString());
+                        addShoutToUI(newShout);
+                    } catch (e) {
+                        console.error("Payload error", e);
+                    }
                 }
+            });
+
+            mqttClient.on('error', () => {
+                updateStatus("Relay Offline", "rose");
             });
         }
 
-        // Initialize App once DOM is ready
-        window.addEventListener('DOMContentLoaded', () => {
-            // Keypad numbers
-            document.querySelectorAll('.keypad-btn[data-key]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const num = e.currentTarget.getAttribute('data-key');
-                    if (enteredPasscode.length < 6) {
-                        enteredPasscode += num;
-                        updateDots();
-                    }
-                });
-            });
+        function updateStatus(text, color) {
+            const statusText = document.getElementById('status-text');
+            const statusDot = document.getElementById('status-dot');
+            statusText.textContent = text;
+            statusDot.className = `w-2 h-2 rounded-full bg-${color}-500 animate-pulse`;
+        }
 
-            // Clear button
-            const clearBtn = document.getElementById('clear-btn');
-            if (clearBtn) {
-                clearBtn.addEventListener('click', () => {
-                    enteredPasscode = "";
-                    updateDots();
-                    document.getElementById('error-msg').classList.add('hidden');
-                });
-            }
+        function renderShouts(shouts) {
+            const container = document.getElementById('shouts-container');
+            container.innerHTML = '';
+            shouts.forEach(s => addShoutToUI(s));
+        }
 
-            // Unlock/Enter button
-            const unlockBtn = document.getElementById('unlock-btn');
-            if (unlockBtn) {
-                unlockBtn.addEventListener('click', handleEntry);
-            }
-
-            // Logout button
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', handleLogout);
-            }
-
-            // Publish button
-            const publishBtn = document.getElementById('publish-btn');
-            if (publishBtn) {
-                publishBtn.addEventListener('click', submitShout);
-            }
-        });
-
-        // AUTH & ENTRY LOGIC
-        async function handleEntry() {
-            const pass = enteredPasscode;
-            const error = document.getElementById('error-msg');
-            const btn = document.getElementById('unlock-btn');
-            const card = document.getElementById('entry-card');
+        function addShoutToUI(s) {
+            const container = document.getElementById('shouts-container');
+            const date = s.createdAt?.seconds ? new Date(s.createdAt.seconds * 1000).toLocaleTimeString() : 'Recent';
             
-            if (PASS_MAP[pass]) {
-                btn.disabled = true;
-                const originalText = btn.textContent;
-                btn.textContent = "VERIFYING...";
-                currentUserName = PASS_MAP[pass];
-                error.classList.add('hidden');
-                
+            const el = document.createElement('div');
+            el.className = "bg-[#1e293b] p-5 rounded-2xl border border-slate-800 flex gap-4 items-start group hover:border-sky-500/50 transition-all";
+            el.innerHTML = `
+                <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${s.username}" class="w-10 h-10 rounded-xl bg-slate-900">
+                <div class="flex-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-black text-sky-400 uppercase tracking-widest">${s.username}</span>
+                        <span class="text-[8px] text-slate-600 font-bold">${date}</span>
+                    </div>
+                    <p class="text-sm text-slate-300 font-medium">${s.text}</p>
+                </div>
+            `;
+            container.prepend(el);
+            // Limit UI items
+            if (container.children.length > 20) container.removeChild(container.lastChild);
+        }
+
+        window.sendShout = async () => {
+            const input = document.getElementById('shout-input');
+            const val = input.value.trim();
+            if (!val) return;
+
+            const payload = {
+                text: val,
+                username: currentUser,
+                createdAt: { seconds: Math.floor(Date.now() / 1000) }
+            };
+
+            if (isFirebaseActive && window.dbInstance) {
                 try {
-                    let userCredential;
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        userCredential = await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        userCredential = await signInAnonymously(auth);
-                    }
-                    authenticatedUser = userCredential.user;
+                    await addDoc(collection(window.dbInstance, 'artifacts', window.appId, 'public', 'data', 'shouts'), {
+                        ...payload,
+                        createdAt: serverTimestamp()
+                    });
                 } catch (e) {
-                    console.error("Auth error:", e);
-                    error.textContent = "Network Error: Retrying...";
-                    error.classList.remove('hidden');
-                    btn.disabled = false;
-                    btn.textContent = originalText;
+                    broadcastMQTT(payload);
                 }
             } else {
-                error.textContent = "Access Denied: Invalid Key";
-                error.classList.remove('hidden');
-                enteredPasscode = "";
-                updateDots();
-                
-                card.classList.add('shake-ui');
-                setTimeout(() => card.classList.remove('shake-ui'), 400);
+                broadcastMQTT(payload);
             }
-        }
 
-        async function handleLogout() {
-            try {
-                if (unsubscribeShouts) unsubscribeShouts();
-                await signOut(auth);
-                location.reload(); 
-            } catch (e) {
-                console.error("Lock error:", e);
-            }
-        }
+            input.value = "";
+        };
 
-        onAuthStateChanged(auth, (user) => {
-            if (user && currentUserName) {
-                authenticatedUser = user;
-                setupUI();
-            }
-        });
-
-        function setupUI() {
-            const entryScreen = document.getElementById('entry-screen');
-            const mainApp = document.getElementById('main-app');
-            entryScreen.style.display = 'none';
-            mainApp.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                mainApp.classList.remove('opacity-0');
-            });
-            
-            document.getElementById('user-display-name').textContent = currentUserName;
-            const avatarUrl = `https://api.dicebear.com/7.x/shapes/svg?seed=${currentUserName}`;
-            document.getElementById('user-avatar').src = avatarUrl;
-            document.getElementById('create-avatar').src = avatarUrl;
-
-            initShoutsListener();
-        }
-
-        function initShoutsListener() {
-            if (!authenticatedUser) return;
-            if (unsubscribeShouts) unsubscribeShouts();
-
-            const nodeName = STORAGE_NODES[activeNodeIndex];
-            const nodeIndicatorText = document.getElementById('active-node-text');
-            const nodeIndicator = document.getElementById('node-indicator');
-            
-            if (nodeIndicatorText) nodeIndicatorText.textContent = `Node ${activeNodeIndex + 1}`;
-            if (nodeIndicator) nodeIndicator.classList.remove('hidden');
-            
-            const collectionPath = collection(db, 'artifacts', appId, 'public', 'data', nodeName);
-            const q = query(collectionPath, orderBy('createdAt', 'desc'));
-
-            unsubscribeShouts = onSnapshot(q, 
-                (snapshot) => {
-                    const list = document.getElementById('shouts-list');
-                    list.innerHTML = '';
-                    
-                    snapshot.forEach((doc) => {
-                        const s = doc.data();
-                        const card = document.createElement('div');
-                        card.className = "bg-[#1e293b] flex hub-border rounded-2xl shadow-sm overflow-hidden card-hover transition-all duration-300";
-                        card.innerHTML = `
-                            <div class="sidebar-accent"></div>
-                            <div class="p-6 flex-1 flex gap-4">
-                                <img src="https://api.dicebear.com/7.x/shapes/svg?seed=${s.username}" class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <span class="text-[10px] font-black text-sky-400 uppercase tracking-widest">${s.username}</span>
-                                        <span class="text-[8px] text-slate-500">• Hub Node ${activeNodeIndex + 1}</span>
-                                    </div>
-                                    <p class="text-sm text-slate-200 leading-relaxed font-medium">${s.text}</p>
-                                </div>
-                            </div>
-                        `;
-                        list.appendChild(card);
-                    });
-                },
-                (error) => {
-                    console.warn(`Node ${activeNodeIndex + 1} Error:`, error.message);
-                    if (activeNodeIndex < STORAGE_NODES.length - 1) {
-                        activeNodeIndex++;
-                        initShoutsListener();
-                    }
-                }
-            );
-        }
-
-        async function submitShout() {
-            if (!authenticatedUser) return;
-            const input = document.getElementById('shout-input');
-            const text = input.value.trim();
-            if (!text) return;
-            const btn = document.getElementById('publish-btn');
-            const originalText = btn.textContent;
-            try {
-                btn.disabled = true;
-                btn.textContent = "SENDING...";
-                const nodeName = STORAGE_NODES[activeNodeIndex];
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', nodeName), {
-                    text,
-                    username: currentUserName,
-                    userId: authenticatedUser.uid,
-                    createdAt: serverTimestamp()
-                });
-                input.value = '';
-            } catch (e) {
-                console.error("Submission error:", e);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = originalText;
+        function broadcastMQTT(data) {
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(mqttTopic, JSON.stringify(data));
+            } else {
+                // Silent fallback to UI if totally offline
+                addShoutToUI(data);
             }
         }
     </script>
