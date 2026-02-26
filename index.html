@@ -56,6 +56,7 @@
             transition: all 0.2s;
             color: #94a3b8;
             cursor: pointer;
+            user-select: none;
         }
         .keypad-btn:hover {
             border-color: #38bdf8;
@@ -205,6 +206,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Global variables for the hub
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -226,7 +228,7 @@
 
         const dots = [0,1,2,3,4,5].map(i => document.getElementById(`dot-${i}`));
 
-        // Keypad Logic
+        // Keypad Logic Helper
         function updateDots() {
             dots.forEach((dot, i) => {
                 if (i < enteredPasscode.length) {
@@ -237,23 +239,50 @@
             });
         }
 
-        document.querySelectorAll('.keypad-btn[data-key]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const num = e.currentTarget.getAttribute('data-key');
-                if (enteredPasscode.length < 6) {
-                    enteredPasscode += num;
-                    updateDots();
-                }
+        // Initialize App once DOM is ready
+        window.addEventListener('DOMContentLoaded', () => {
+            // Keypad numbers
+            document.querySelectorAll('.keypad-btn[data-key]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const num = e.currentTarget.getAttribute('data-key');
+                    if (enteredPasscode.length < 6) {
+                        enteredPasscode += num;
+                        updateDots();
+                    }
+                });
             });
+
+            // Clear button
+            const clearBtn = document.getElementById('clear-btn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    enteredPasscode = "";
+                    updateDots();
+                    document.getElementById('error-msg').classList.add('hidden');
+                });
+            }
+
+            // Unlock/Enter button
+            const unlockBtn = document.getElementById('unlock-btn');
+            if (unlockBtn) {
+                unlockBtn.addEventListener('click', handleEntry);
+            }
+
+            // Logout button
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', handleLogout);
+            }
+
+            // Publish button
+            const publishBtn = document.getElementById('publish-btn');
+            if (publishBtn) {
+                publishBtn.addEventListener('click', submitShout);
+            }
         });
 
-        document.getElementById('clear-btn').addEventListener('click', () => {
-            enteredPasscode = "";
-            updateDots();
-        });
-
-        // AUTH & ENTRY
-        const handleEntry = async () => {
+        // AUTH & ENTRY LOGIC
+        async function handleEntry() {
             const pass = enteredPasscode;
             const error = document.getElementById('error-msg');
             const btn = document.getElementById('unlock-btn');
@@ -261,6 +290,7 @@
             
             if (PASS_MAP[pass]) {
                 btn.disabled = true;
+                const originalText = btn.textContent;
                 btn.textContent = "VERIFYING...";
                 currentUserName = PASS_MAP[pass];
                 error.classList.add('hidden');
@@ -278,7 +308,7 @@
                     error.textContent = "Network Error: Retrying...";
                     error.classList.remove('hidden');
                     btn.disabled = false;
-                    btn.textContent = "Initialize Hub";
+                    btn.textContent = originalText;
                 }
             } else {
                 error.textContent = "Access Denied: Invalid Key";
@@ -289,11 +319,9 @@
                 card.classList.add('shake-ui');
                 setTimeout(() => card.classList.remove('shake-ui'), 400);
             }
-        };
+        }
 
-        document.getElementById('unlock-btn').addEventListener('click', handleEntry);
-
-        document.getElementById('logout-btn').addEventListener('click', async () => {
+        async function handleLogout() {
             try {
                 if (unsubscribeShouts) unsubscribeShouts();
                 await signOut(auth);
@@ -301,7 +329,7 @@
             } catch (e) {
                 console.error("Lock error:", e);
             }
-        });
+        }
 
         onAuthStateChanged(auth, (user) => {
             if (user && currentUserName) {
@@ -376,7 +404,7 @@
             );
         }
 
-        document.getElementById('publish-btn').addEventListener('click', async () => {
+        async function submitShout() {
             if (!authenticatedUser) return;
             const input = document.getElementById('shout-input');
             const text = input.value.trim();
@@ -400,7 +428,7 @@
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
-        });
+        }
     </script>
 </body>
 </html>
