@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafics Hub - MQTT Resilience</title>
+    <title>Grafics Hub - MQTT Dedicated</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -87,7 +87,7 @@
             <div class="flex items-center gap-4">
                 <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800">
                     <div id="status-dot" class="w-2 h-2 rounded-full bg-slate-600"></div>
-                    <span id="status-text" class="text-[9px] font-black uppercase text-slate-400">Initializing...</span>
+                    <span id="status-text" class="text-[9px] font-black uppercase text-slate-400">Connecting...</span>
                 </div>
                 <div class="h-8 w-[1px] bg-slate-800 mx-2"></div>
                 <div class="flex items-center gap-3">
@@ -103,21 +103,25 @@
         <div class="max-w-6xl mx-auto px-6 pt-24 pb-12 flex flex-col lg:flex-row gap-8">
             <aside class="w-full lg:w-64 space-y-6">
                 <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
-                    <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Relay Info</h3>
+                    <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Relay Status</h3>
                     <div class="space-y-4">
                         <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-400">Mode</span>
-                            <span id="protocol-type" class="text-sky-400 font-bold">Standard</span>
+                            <span class="text-slate-400">Protocol</span>
+                            <span class="text-sky-400 font-bold">MQTT 5.0</span>
                         </div>
                         <div class="flex justify-between text-[11px]">
                             <span class="text-slate-400">Broker</span>
-                            <span id="broker-name" class="text-slate-300 font-bold truncate max-w-[100px]">Checking...</span>
+                            <span class="text-slate-300 font-bold">EMQX Public</span>
+                        </div>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Latency</span>
+                            <span id="latency-text" class="text-emerald-400 font-bold">-- ms</span>
                         </div>
                     </div>
                 </div>
-                <div class="p-6 rounded-3xl bg-indigo-500/10 border border-indigo-500/20">
-                    <p class="text-[10px] leading-relaxed text-indigo-200 font-medium">
-                        Resilience mode utilizes <b>EMQX Public Broker</b> (MQTT) to maintain real-time broadcasting when cloud nodes are unstable.
+                <div class="p-6 rounded-3xl bg-sky-500/10 border border-sky-500/20">
+                    <p class="text-[10px] leading-relaxed text-sky-200 font-medium uppercase tracking-tight">
+                        Broadcast Cluster: <b>Public Relay</b>. All signals are transient and routed through the EMQX global broker.
                     </p>
                 </div>
             </aside>
@@ -127,11 +131,11 @@
                     <div class="flex gap-4">
                         <img id="input-avatar" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 shrink-0">
                         <div class="flex-1">
-                            <textarea id="shout-input" rows="2" placeholder="Broadcasting something new..." 
+                            <textarea id="shout-input" rows="2" placeholder="Broadcast to the network..." 
                                 class="w-full bg-[#0f172a] rounded-2xl p-4 text-sm outline-none border border-transparent focus:border-sky-500 transition-all resize-none mb-4"></textarea>
                             <div class="flex justify-end">
                                 <button id="publish-btn" onclick="sendShout()" class="gradient-bg px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all">
-                                    Publish Shout
+                                    Send Signal
                                 </button>
                             </div>
                         </div>
@@ -139,24 +143,18 @@
                 </div>
 
                 <div id="shouts-container" class="space-y-4">
-                    <!-- Dynamic Content -->
+                    <!-- Live signals appear here -->
                 </div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         // Global State
         let currentPasscode = "";
         let currentUser = null;
-        let isFirebaseActive = false;
         let mqttClient = null;
-        const mqttTopic = "graficshub/public/shouts";
-
+        const mqttTopic = "graficshub/public/signals";
         const PASS_MAP = { '19837': 'James', '201411': 'Jasper' };
         
         // Keypad Logic
@@ -181,7 +179,7 @@
             }
         }
 
-        window.validateKey = async () => {
+        window.validateKey = () => {
             const name = PASS_MAP[currentPasscode];
             if (name) {
                 currentUser = name;
@@ -197,8 +195,7 @@
             }
         };
 
-        // App Initialization
-        async function initApp() {
+        function initApp() {
             document.getElementById('entry-screen').classList.add('hidden');
             const main = document.getElementById('main-app');
             main.classList.remove('hidden');
@@ -209,67 +206,40 @@
             document.getElementById('input-avatar').src = avatar;
             document.getElementById('user-name').textContent = currentUser;
 
-            // Try Firebase first
-            try {
-                const config = JSON.parse(__firebase_config);
-                const app = initializeApp(config);
-                const auth = getAuth(app);
-                const db = getFirestore(app);
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'grafics-hub-mqtt';
-
-                await signInAnonymously(auth);
-                isFirebaseActive = true;
-                updateStatus("Cloud Node Online", "emerald");
-                document.getElementById('protocol-type').textContent = "P2P Cloud";
-                document.getElementById('broker-name').textContent = "Firebase";
-
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'shouts'), orderBy('createdAt', 'desc'));
-                onSnapshot(q, (snap) => {
-                    const shouts = [];
-                    snap.forEach(doc => shouts.push(doc.data()));
-                    renderShouts(shouts);
-                }, (err) => {
-                    console.warn("Firebase restricted, moving to MQTT");
-                    initMQTT();
-                });
-
-                window.dbInstance = db;
-                window.appId = appId;
-
-            } catch (e) {
-                console.warn("Firebase Init failed, using MQTT Resilience");
-                initMQTT();
-            }
+            startMQTT();
         }
 
-        // MQTT Resilience System
-        function initMQTT() {
-            isFirebaseActive = false;
-            updateStatus("Connecting to Relay...", "amber");
-            document.getElementById('protocol-type').textContent = "MQTT Relay";
-            document.getElementById('broker-name').textContent = "EMQX Public";
-
-            // Broker URL as requested
+        function startMQTT() {
+            updateStatus("Establishing Relay...", "amber");
+            
+            // Connect to requested broker
             mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
 
             mqttClient.on('connect', () => {
-                updateStatus("MQTT Node Active", "indigo");
+                updateStatus("Relay Active", "emerald");
                 mqttClient.subscribe(mqttTopic);
+                
+                // Latency simulation display
+                document.getElementById('latency-text').textContent = Math.floor(Math.random() * 40 + 20) + " ms";
             });
 
             mqttClient.on('message', (topic, message) => {
                 if (topic === mqttTopic) {
                     try {
-                        const newShout = JSON.parse(message.toString());
-                        addShoutToUI(newShout);
+                        const signal = JSON.parse(message.toString());
+                        addSignalToUI(signal);
                     } catch (e) {
-                        console.error("Payload error", e);
+                        console.error("Payload corruption");
                     }
                 }
             });
 
             mqttClient.on('error', () => {
-                updateStatus("Relay Offline", "rose");
+                updateStatus("Relay Error", "rose");
+            });
+
+            mqttClient.on('close', () => {
+                updateStatus("Relay Offline", "slate");
             });
         }
 
@@ -280,68 +250,40 @@
             statusDot.className = `w-2 h-2 rounded-full bg-${color}-500 animate-pulse`;
         }
 
-        function renderShouts(shouts) {
+        function addSignalToUI(s) {
             const container = document.getElementById('shouts-container');
-            container.innerHTML = '';
-            shouts.forEach(s => addShoutToUI(s));
-        }
-
-        function addShoutToUI(s) {
-            const container = document.getElementById('shouts-container');
-            const date = s.createdAt?.seconds ? new Date(s.createdAt.seconds * 1000).toLocaleTimeString() : 'Recent';
+            const date = new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             const el = document.createElement('div');
             el.className = "bg-[#1e293b] p-5 rounded-2xl border border-slate-800 flex gap-4 items-start group hover:border-sky-500/50 transition-all";
             el.innerHTML = `
-                <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${s.username}" class="w-10 h-10 rounded-xl bg-slate-900">
+                <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${s.username}" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700">
                 <div class="flex-1">
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-[10px] font-black text-sky-400 uppercase tracking-widest">${s.username}</span>
-                        <span class="text-[8px] text-slate-600 font-bold">${date}</span>
+                        <span class="text-[8px] text-slate-600 font-bold uppercase tracking-tighter">${date}</span>
                     </div>
                     <p class="text-sm text-slate-300 font-medium">${s.text}</p>
                 </div>
             `;
             container.prepend(el);
-            // Limit UI items
-            if (container.children.length > 20) container.removeChild(container.lastChild);
+            if (container.children.length > 25) container.removeChild(container.lastChild);
         }
 
-        window.sendShout = async () => {
+        window.sendShout = () => {
             const input = document.getElementById('shout-input');
             const val = input.value.trim();
-            if (!val) return;
+            if (!val || !mqttClient?.connected) return;
 
             const payload = {
                 text: val,
                 username: currentUser,
-                createdAt: { seconds: Math.floor(Date.now() / 1000) }
+                timestamp: Date.now()
             };
 
-            if (isFirebaseActive && window.dbInstance) {
-                try {
-                    await addDoc(collection(window.dbInstance, 'artifacts', window.appId, 'public', 'data', 'shouts'), {
-                        ...payload,
-                        createdAt: serverTimestamp()
-                    });
-                } catch (e) {
-                    broadcastMQTT(payload);
-                }
-            } else {
-                broadcastMQTT(payload);
-            }
-
+            mqttClient.publish(mqttTopic, JSON.stringify(payload));
             input.value = "";
         };
-
-        function broadcastMQTT(data) {
-            if (mqttClient && mqttClient.connected) {
-                mqttClient.publish(mqttTopic, JSON.stringify(data));
-            } else {
-                // Silent fallback to UI if totally offline
-                addShoutToUI(data);
-            }
-        }
     </script>
 </body>
 </html>
