@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafics Hub - Creative Feed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #f8fafc; }
+        .hub-border { border: 1px solid #1e293b; }
+        .card-hover:hover { border-color: #38bdf8; background-color: #1e293b; }
+        .sidebar-accent { background-color: #1e293b; width: 4px; }
+        .hub-brand { color: #38bdf8; font-weight: 900; letter-spacing: -0.5px; }
+        
+        #entry-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Gatekeeper Screen -->
+    <div id="entry-screen">
+        <div class="bg-[#1e293b] p-10 rounded-[2rem] shadow-2xl w-full max-w-md text-center border border-slate-700">
+            <div class="gradient-bg w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-900/20 rotate-3">
+                <i class="fa-solid fa-layer-group text-white text-3xl"></i>
+            </div>
+            <h1 class="text-3xl font-black uppercase tracking-tight mb-2">Grafics Hub</h1>
+            <p class="text-slate-400 text-sm mb-10 font-medium">Authentication required for creative assets</p>
+            
+            <form onsubmit="event.preventDefault(); handleEntry();" class="space-y-4">
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="password" id="gate-pass" placeholder="ACCESS KEY" required 
+                        class="w-full bg-[#0f172a] rounded-2xl px-12 py-5 text-center font-black tracking-[0.3em] outline-none border-2 border-slate-800 focus:border-sky-500 transition-all text-sky-400">
+                </div>
+                <button type="submit" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
+                    Initialize Hub
+                </button>
+            </form>
+            <p id="error-msg" class="text-rose-500 text-xs mt-6 font-bold hidden bg-rose-500/10 py-2 rounded-lg">Access Denied: Invalid Key</p>
+        </div>
+    </div>
+
+    <!-- Main App UI -->
+    <div id="main-app" class="opacity-0 transition-opacity duration-700 hidden">
+        <!-- Navbar -->
+        <nav class="bg-[#0f172a]/80 backdrop-blur-md h-16 border-b border-slate-800 fixed w-full top-0 z-50 flex items-center px-8 justify-between">
+            <div class="flex items-center gap-3">
+                <div class="gradient-bg p-2 rounded-lg">
+                    <i class="fa-solid fa-layer-group text-white text-lg"></i>
+                </div>
+                <span class="text-xl hub-brand uppercase tracking-tighter">Grafics Hub</span>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div id="node-indicator" class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-full border border-slate-700">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span id="active-node-text" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node 1</span>
+                </div>
+                
+                <div class="flex items-center gap-3 pl-6 border-l border-slate-800">
+                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700">
+                    <span id="user-display-name" class="text-xs font-black text-slate-200 uppercase"></span>
+                    <button onclick="handleLock()" class="ml-2 text-slate-500 hover:text-rose-500 transition-colors">
+                        <i class="fa-solid fa-power-off text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content -->
+        <main class="max-w-[1200px] mx-auto px-8 pt-24 flex gap-10">
+            <!-- Sidebar -->
+            <aside class="hidden lg:block w-64 space-y-8">
+                <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
+                    <h4 class="text-slate-500 font-black uppercase text-[10px] tracking-widest mb-6">Asset Network</h4>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-circle text-[8px] text-sky-500"></i>
+                            <span class="text-xs font-bold text-slate-300">Global Stream</span>
+                        </div>
+                        <div class="flex items-center gap-3 opacity-40">
+                            <i class="fa-solid fa-circle text-[8px] text-slate-600"></i>
+                            <span class="text-xs font-bold text-slate-500">Private Vault</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 gradient-bg rounded-2xl text-white">
+                    <h5 class="font-black text-xs uppercase mb-2">Pro Tip</h5>
+                    <p class="text-[10px] leading-relaxed opacity-90">Switch between nodes if you experience latency. All creative shouts are synced across the cluster.</p>
+                </div>
+            </aside>
+
+            <!-- Feed -->
+            <div class="flex-1 space-y-8 pb-20">
+                <div class="bg-[#1e293b] p-6 rounded-3xl border border-slate-800 shadow-xl">
+                    <div class="flex items-start gap-4">
+                        <img id="create-avatar" src="" class="w-12 h-12 rounded-2xl bg-slate-800">
+                        <div class="flex-1 space-y-4">
+                            <textarea id="shout-input" rows="2" placeholder="Describe your next masterpiece..." 
+                                class="w-full bg-[#0f172a] rounded-2xl px-6 py-4 text-sm outline-none border-2 border-transparent focus:border-sky-500 transition-all resize-none"></textarea>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Post to creative feed</span>
+                                <button onclick="submitShout()" class="gradient-bg text-white px-10 py-3 rounded-xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">
+                                    PUBLISH
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="shouts-list" class="space-y-6">
+                    <!-- Shouts -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'grafics-hub-v1';
+
+        // Nodes for failover logic
+        const STORAGE_NODES = ['creative_main', 'creative_node_b', 'creative_fallback'];
+        let activeNodeIndex = 0;
+
+        const PASS_MAP = {
+            'Jasper13': 'Jasper',
+            'James47': 'James',
+            'User1': 'Alpha',
+            'User2': 'Beta'
+        };
+
+        let currentUserName = "";
+        let authenticatedUser = null;
+        let unsubscribeShouts = null;
+
+        // AUTH & ENTRY
+        window.handleEntry = async () => {
+            const pass = document.getElementById('gate-pass').value;
+            const error = document.getElementById('error-msg');
+            const btn = document.getElementById('unlock-btn');
+            
+            if (PASS_MAP[pass]) {
+                btn.disabled = true;
+                btn.textContent = "VERIFYING...";
+                currentUserName = PASS_MAP[pass];
+                error.classList.add('hidden');
+                
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (e) {
+                    error.textContent = "Network Error: Retrying...";
+                    error.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = "Initialize Hub";
+                }
+            } else {
+                error.textContent = "Access Denied: Invalid Key";
+                error.classList.remove('hidden');
+            }
+        };
+
+        // LOCK FUNCTION
+        window.handleLock = async () => {
+            try {
+                if (unsubscribeShouts) unsubscribeShouts();
+                await signOut(auth);
+                location.reload(); // Hard reset for security
+            } catch (e) {
+                console.error("Lock error:", e);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user && currentUserName) {
+                authenticatedUser = user;
+                setupUI();
+            }
+        });
+
+        function setupUI() {
+            document.getElementById('entry-screen').style.display = 'none';
+            const mainApp = document.getElementById('main-app');
+            mainApp.classList.remove('hidden');
+            setTimeout(() => mainApp.classList.remove('opacity-0'), 10);
+            
+            document.getElementById('user-display-name').textContent = currentUserName;
+            const avatarUrl = `https://api.dicebear.com/7.x/shapes/svg?seed=${currentUserName}`;
+            document.getElementById('user-avatar').src = avatarUrl;
+            document.getElementById('create-avatar').src = avatarUrl;
+
+            initShoutsListener();
+        }
+
+        // FAILOVER LISTENER
+        function initShoutsListener() {
+            if (!authenticatedUser) return;
+            if (unsubscribeShouts) unsubscribeShouts();
+
+            const nodeName = STORAGE_NODES[activeNodeIndex];
+            document.getElementById('active-node-text').textContent = `Node ${activeNodeIndex + 1}`;
+            
+            // Path structure for public data
+            const collectionPath = collection(db, 'artifacts', appId, 'public', 'data', nodeName);
+            const q = query(collectionPath, orderBy('createdAt', 'desc'));
+
+            unsubscribeShouts = onSnapshot(q, 
+                (snapshot) => {
+                    const list = document.getElementById('shouts-list');
+                    list.innerHTML = '';
+                    
+                    snapshot.forEach((doc) => {
+                        const s = doc.data();
+                        const card = document.createElement('div');
+                        card.className = "bg-[#1e293b] flex hub-border rounded-2xl shadow-sm overflow-hidden card-hover transition-all duration-300";
+                        card.innerHTML = `
+                            <div class="sidebar-accent"></div>
+                            <div class="p-6 flex-1 flex gap-4">
+                                <img src="https://api.dicebear.com/7.x/shapes/svg?seed=${s.username}" class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-[10px] font-black text-sky-400 uppercase tracking-widest">${s.username}</span>
+                                        <span class="text-[8px] text-slate-500">• Hub Node ${activeNodeIndex + 1}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-200 leading-relaxed font-medium">${s.text}</p>
+                                </div>
+                            </div>
+                        `;
+                        list.appendChild(card);
+                    });
+                },
+                (error) => {
+                    console.warn(`Node ${activeNodeIndex + 1} Error:`, error.message);
+                    // Failover logic
+                    if (activeNodeIndex < STORAGE_NODES.length - 1) {
+                        activeNodeIndex++;
+                        initShoutsListener();
+                    } else {
+                        console.error("Critical: All nodes unreachable");
+                    }
+                }
+            );
+        }
+
+        window.submitShout = async () => {
+            if (!authenticatedUser) return;
+            
+            const input = document.getElementById('shout-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            try {
+                const nodeName = STORAGE_NODES[activeNodeIndex];
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', nodeName), {
+                    text,
+                    username: currentUserName,
+                    userId: authenticatedUser.uid,
+                    createdAt: serverTimestamp()
+                });
+                input.value = '';
+            } catch (e) {
+                console.error("Submission error:", e);
+            }
+        };
+    </script>
+</body>
+</html>
