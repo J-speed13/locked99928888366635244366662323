@@ -26,6 +26,21 @@
         .gradient-bg {
             background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
         }
+
+        /* Passcode Dot Styling */
+        .passcode-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #334155;
+            transition: all 0.2s ease;
+        }
+        .passcode-dot.active {
+            background-color: #38bdf8;
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -37,18 +52,33 @@
                 <i class="fa-solid fa-layer-group text-white text-3xl"></i>
             </div>
             <h1 class="text-3xl font-black uppercase tracking-tight mb-2">Grafics Hub</h1>
-            <p class="text-slate-400 text-sm mb-10 font-medium">Authentication required for creative assets</p>
+            <p class="text-slate-400 text-sm mb-10 font-medium">Secure Terminal Access</p>
             
-            <form onsubmit="event.preventDefault(); handleEntry();" class="space-y-4">
-                <div class="relative">
-                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-                    <input type="password" id="gate-pass" placeholder="ACCESS KEY" required 
-                        class="w-full bg-[#0f172a] rounded-2xl px-12 py-5 text-center font-black tracking-[0.3em] outline-none border-2 border-slate-800 focus:border-sky-500 transition-all text-sky-400">
+            <div class="space-y-8">
+                <!-- Passcode Visual Dots -->
+                <div class="flex justify-center gap-4 py-4">
+                    <div class="passcode-dot" id="dot-0"></div>
+                    <div class="passcode-dot" id="dot-1"></div>
+                    <div class="passcode-dot" id="dot-2"></div>
+                    <div class="passcode-dot" id="dot-3"></div>
+                    <div class="passcode-dot" id="dot-4"></div>
+                    <div class="passcode-dot" id="dot-5"></div>
+                    <div class="passcode-dot" id="dot-6"></div>
+                    <div class="passcode-dot" id="dot-7"></div>
                 </div>
-                <button type="submit" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
+
+                <!-- Hidden Input to catch typing -->
+                <input type="password" id="gate-pass" autocomplete="off" 
+                    class="absolute opacity-0 pointer-events-none" autofocus>
+                
+                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+                    Type your passcode to initialize
+                </div>
+
+                <button onclick="handleEntry()" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
                     Initialize Hub
                 </button>
-            </form>
+            </div>
             <p id="error-msg" class="text-rose-500 text-xs mt-6 font-bold hidden bg-rose-500/10 py-2 rounded-lg">Access Denied: Invalid Key</p>
         </div>
     </div>
@@ -140,7 +170,6 @@
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'grafics-hub-v1';
 
-        // Nodes for failover logic
         const STORAGE_NODES = ['creative_main', 'creative_node_b', 'creative_fallback'];
         let activeNodeIndex = 0;
 
@@ -155,9 +184,30 @@
         let authenticatedUser = null;
         let unsubscribeShouts = null;
 
+        // UI Logic for Dots
+        const passInput = document.getElementById('gate-pass');
+        const dots = [0,1,2,3,4,5,6,7].map(i => document.getElementById(`dot-${i}`));
+
+        passInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            dots.forEach((dot, i) => {
+                if (i < val.length) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        });
+
+        // Ensure input stays focused for typing
+        document.addEventListener('click', () => {
+            if (document.getElementById('entry-screen').style.display !== 'none') {
+                passInput.focus();
+            }
+        });
+
         // AUTH & ENTRY
         window.handleEntry = async () => {
-            const passInput = document.getElementById('gate-pass');
             const pass = passInput.value;
             const error = document.getElementById('error-msg');
             const btn = document.getElementById('unlock-btn');
@@ -169,15 +219,12 @@
                 error.classList.add('hidden');
                 
                 try {
-                    // Sign in first
                     let userCredential;
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         userCredential = await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         userCredential = await signInAnonymously(auth);
                     }
-                    
-                    // Once signed in, the onAuthStateChanged listener below will handle UI setup
                     authenticatedUser = userCredential.user;
                 } catch (e) {
                     console.error("Auth error:", e);
@@ -190,10 +237,15 @@
                 error.textContent = "Access Denied: Invalid Key";
                 error.classList.remove('hidden');
                 passInput.value = '';
+                dots.forEach(dot => dot.classList.remove('active'));
+                
+                // Shake effect for feedback
+                const container = document.querySelector('#entry-screen > div');
+                container.classList.add('animate-bounce');
+                setTimeout(() => container.classList.remove('animate-bounce'), 500);
             }
         };
 
-        // LOCK FUNCTION
         window.handleLock = async () => {
             try {
                 if (unsubscribeShouts) unsubscribeShouts();
@@ -204,7 +256,6 @@
             }
         };
 
-        // This listener is the source of truth for UI state
         onAuthStateChanged(auth, (user) => {
             if (user && currentUserName) {
                 authenticatedUser = user;
@@ -215,13 +266,8 @@
         function setupUI() {
             const entryScreen = document.getElementById('entry-screen');
             const mainApp = document.getElementById('main-app');
-            
-            // Hide entry screen
             entryScreen.style.display = 'none';
-            
-            // Show main app
             mainApp.classList.remove('hidden');
-            // Small delay to trigger CSS transition
             requestAnimationFrame(() => {
                 mainApp.classList.remove('opacity-0');
             });
@@ -234,7 +280,6 @@
             initShoutsListener();
         }
 
-        // FAILOVER LISTENER
         function initShoutsListener() {
             if (!authenticatedUser) return;
             if (unsubscribeShouts) unsubscribeShouts();
@@ -246,7 +291,6 @@
             if (nodeIndicatorText) nodeIndicatorText.textContent = `Node ${activeNodeIndex + 1}`;
             if (nodeIndicator) nodeIndicator.classList.remove('hidden');
             
-            // Path structure for public data
             const collectionPath = collection(db, 'artifacts', appId, 'public', 'data', nodeName);
             const q = query(collectionPath, orderBy('createdAt', 'desc'));
 
@@ -277,12 +321,9 @@
                 },
                 (error) => {
                     console.warn(`Node ${activeNodeIndex + 1} Error:`, error.message);
-                    // Failover logic
                     if (activeNodeIndex < STORAGE_NODES.length - 1) {
                         activeNodeIndex++;
                         initShoutsListener();
-                    } else {
-                        console.error("Critical: All nodes unreachable");
                     }
                 }
             );
@@ -290,14 +331,11 @@
 
         window.submitShout = async () => {
             if (!authenticatedUser) return;
-            
             const input = document.getElementById('shout-input');
             const text = input.value.trim();
             if (!text) return;
-
             const btn = document.querySelector('button[onclick="submitShout()"]');
             const originalText = btn.textContent;
-            
             try {
                 btn.disabled = true;
                 btn.textContent = "SENDING...";
