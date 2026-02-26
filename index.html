@@ -55,6 +55,7 @@
             font-size: 1.25rem;
             transition: all 0.2s;
             color: #94a3b8;
+            cursor: pointer;
         }
         .keypad-btn:hover {
             border-color: #38bdf8;
@@ -87,7 +88,7 @@
             <p class="text-slate-400 text-sm mb-6 font-medium">Secure Terminal Access</p>
             
             <div class="space-y-6">
-                <!-- Passcode Visual Dots (Updated to 6 for the longest code) -->
+                <!-- Passcode Visual Dots -->
                 <div class="flex justify-center gap-4 py-2">
                     <div class="passcode-dot" id="dot-0"></div>
                     <div class="passcode-dot" id="dot-1"></div>
@@ -99,23 +100,23 @@
 
                 <!-- Clickable Keypad Grid -->
                 <div class="grid grid-cols-3 gap-3 max-w-[220px] mx-auto">
-                    <button class="keypad-btn" onclick="pressKey('1')">1</button>
-                    <button class="keypad-btn" onclick="pressKey('2')">2</button>
-                    <button class="keypad-btn" onclick="pressKey('3')">3</button>
-                    <button class="keypad-btn" onclick="pressKey('4')">4</button>
-                    <button class="keypad-btn" onclick="pressKey('5')">5</button>
-                    <button class="keypad-btn" onclick="pressKey('6')">6</button>
-                    <button class="keypad-btn" onclick="pressKey('7')">7</button>
-                    <button class="keypad-btn" onclick="pressKey('8')">8</button>
-                    <button class="keypad-btn" onclick="pressKey('9')">9</button>
-                    <button class="keypad-btn col-start-2" onclick="pressKey('0')">0</button>
-                    <button class="keypad-btn text-rose-500" onclick="clearKeys()">
-                        <i class="fa-solid fa-rotate-left text-sm"></i>
+                    <button type="button" class="keypad-btn" data-key="1">1</button>
+                    <button type="button" class="keypad-btn" data-key="2">2</button>
+                    <button type="button" class="keypad-btn" data-key="3">3</button>
+                    <button type="button" class="keypad-btn" data-key="4">4</button>
+                    <button type="button" class="keypad-btn" data-key="5">5</button>
+                    <button type="button" class="keypad-btn" data-key="6">6</button>
+                    <button type="button" class="keypad-btn" data-key="7">7</button>
+                    <button type="button" class="keypad-btn" data-key="8">8</button>
+                    <button type="button" class="keypad-btn" data-key="9">9</button>
+                    <button type="button" class="keypad-btn col-start-2" data-key="0">0</button>
+                    <button type="button" class="keypad-btn text-rose-500" id="clear-btn">
+                        <i class="fa-solid fa-rotate-left text-sm pointer-events-none"></i>
                     </button>
                 </div>
 
                 <!-- Submit Button -->
-                <button onclick="handleEntry()" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
+                <button type="button" id="unlock-btn" class="w-full gradient-bg text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:shadow-sky-500/20 active:scale-95 transition-all uppercase tracking-widest">
                     Initialize Hub
                 </button>
             </div>
@@ -143,7 +144,7 @@
                 <div class="flex items-center gap-3 pl-6 border-l border-slate-800">
                     <img id="user-avatar" src="" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700">
                     <span id="user-display-name" class="text-xs font-black text-slate-200 uppercase"></span>
-                    <button onclick="handleLock()" class="ml-2 text-slate-500 hover:text-rose-500 transition-colors">
+                    <button id="logout-btn" class="ml-2 text-slate-500 hover:text-rose-500 transition-colors">
                         <i class="fa-solid fa-power-off text-sm"></i>
                     </button>
                 </div>
@@ -184,7 +185,7 @@
                                 class="w-full bg-[#0f172a] rounded-2xl px-6 py-4 text-sm outline-none border-2 border-transparent focus:border-sky-500 transition-all resize-none"></textarea>
                             <div class="flex justify-between items-center">
                                 <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Post to creative feed</span>
-                                <button onclick="submitShout()" class="gradient-bg text-white px-10 py-3 rounded-xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">
+                                <button id="publish-btn" class="gradient-bg text-white px-10 py-3 rounded-xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">
                                     PUBLISH
                                 </button>
                             </div>
@@ -213,7 +214,6 @@
         const STORAGE_NODES = ['creative_main', 'creative_node_b', 'creative_fallback'];
         let activeNodeIndex = 0;
 
-        // Updated Passcodes
         const PASS_MAP = {
             '19837': 'James',
             '20147': 'Jasper'
@@ -226,18 +226,7 @@
 
         const dots = [0,1,2,3,4,5].map(i => document.getElementById(`dot-${i}`));
 
-        window.pressKey = (num) => {
-            if (enteredPasscode.length < 6) {
-                enteredPasscode += num;
-                updateDots();
-            }
-        };
-
-        window.clearKeys = () => {
-            enteredPasscode = "";
-            updateDots();
-        };
-
+        // Keypad Logic
         function updateDots() {
             dots.forEach((dot, i) => {
                 if (i < enteredPasscode.length) {
@@ -248,8 +237,23 @@
             });
         }
 
+        document.querySelectorAll('.keypad-btn[data-key]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const num = e.currentTarget.getAttribute('data-key');
+                if (enteredPasscode.length < 6) {
+                    enteredPasscode += num;
+                    updateDots();
+                }
+            });
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            enteredPasscode = "";
+            updateDots();
+        });
+
         // AUTH & ENTRY
-        window.handleEntry = async () => {
+        const handleEntry = async () => {
             const pass = enteredPasscode;
             const error = document.getElementById('error-msg');
             const btn = document.getElementById('unlock-btn');
@@ -279,14 +283,17 @@
             } else {
                 error.textContent = "Access Denied: Invalid Key";
                 error.classList.remove('hidden');
-                clearKeys();
+                enteredPasscode = "";
+                updateDots();
                 
                 card.classList.add('shake-ui');
                 setTimeout(() => card.classList.remove('shake-ui'), 400);
             }
         };
 
-        window.handleLock = async () => {
+        document.getElementById('unlock-btn').addEventListener('click', handleEntry);
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
             try {
                 if (unsubscribeShouts) unsubscribeShouts();
                 await signOut(auth);
@@ -294,7 +301,7 @@
             } catch (e) {
                 console.error("Lock error:", e);
             }
-        };
+        });
 
         onAuthStateChanged(auth, (user) => {
             if (user && currentUserName) {
@@ -369,12 +376,12 @@
             );
         }
 
-        window.submitShout = async () => {
+        document.getElementById('publish-btn').addEventListener('click', async () => {
             if (!authenticatedUser) return;
             const input = document.getElementById('shout-input');
             const text = input.value.trim();
             if (!text) return;
-            const btn = document.querySelector('button[onclick="submitShout()"]');
+            const btn = document.getElementById('publish-btn');
             const originalText = btn.textContent;
             try {
                 btn.disabled = true;
@@ -393,7 +400,7 @@
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
-        };
+        });
     </script>
 </body>
 </html>
