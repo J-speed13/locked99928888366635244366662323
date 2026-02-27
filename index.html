@@ -306,7 +306,6 @@
 
         function initWorkspaceContent() {
             if (!user) return;
-            // FIXED PATH: Ensure correct 6-segment path (artifacts / {appId} / public / data / documents / {projectId})
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'documents', currentProject);
             
             onSnapshot(docRef, (snap) => {
@@ -320,27 +319,56 @@
         }
 
         function connectMQTT() {
-            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+            // Updated to use HiveMQ public broker which is generally more stable for web test clients
+            // and includes a unique clientId to prevent connection conflicts.
+            const clientId = 'mqttjs_' + Math.random().toString(16).substr(2, 8);
+            mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+                clientId: clientId,
+                clean: true,
+                connectTimeout: 4000,
+                reconnectPeriod: 1000,
+            });
+
             mqttClient.on('connect', () => {
                 updateStatus('emerald');
-                const docTopic = `graficshub/island/docs/${currentProject}`;
-                const chatTopic = `graficshub/island/chat/${currentProject}`;
-                const presTopic = `graficshub/island/presence/${currentProject}`;
+                const docTopic = `graficshub/${appId}/${currentProject}/docs`;
+                const chatTopic = `graficshub/${appId}/${currentProject}/chat`;
+                const presTopic = `graficshub/${appId}/${currentProject}/presence`;
                 
-                mqttClient.subscribe([docTopic, chatTopic, presTopic]);
-                pingPresence();
+                mqttClient.subscribe([docTopic, chatTopic, presTopic], (err) => {
+                    if (!err) {
+                        console.log("Subscribed to topics");
+                        pingPresence();
+                    }
+                });
             });
+
+            mqttClient.on('error', (err) => {
+                console.error("MQTT Error:", err);
+                updateStatus('rose');
+            });
+
             mqttClient.on('message', (topic, msg) => {
-                const data = JSON.parse(msg.toString());
-                if(topic.includes('/chat/')) handleIncomingChat(data);
-                if(topic.includes('/presence/')) handleIncomingPresence(data);
-                if(topic.includes('/docs/') && data.sender !== currentUser) handleIncomingDoc(data);
+                try {
+                    const data = JSON.parse(msg.toString());
+                    if(topic.includes('/chat')) handleIncomingChat(data);
+                    if(topic.includes('/presence')) handleIncomingPresence(data);
+                    if(topic.includes('/docs') && data.sender !== currentUser) handleIncomingDoc(data);
+                } catch (e) {
+                    console.error("Failed to parse message", e);
+                }
             });
+
+            mqttClient.on('close', () => {
+                updateStatus('yellow');
+            });
+
             setInterval(pingPresence, 10000);
         }
 
         function updateStatus(color) {
-            document.getElementById('status-dot').className = `w-2 h-2 rounded-full bg-${color}-500 shadow-sm`;
+            const dot = document.getElementById('status-dot');
+            if (dot) dot.className = `w-2 h-2 rounded-full bg-${color}-500 shadow-sm transition-colors duration-300`;
         }
 
         const editor = document.getElementById('doc-editor');
@@ -351,15 +379,16 @@
             
             document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Syncing';
             
-            mqttClient.publish(`graficshub/island/docs/${currentProject}`, JSON.stringify({
-                content, sender: currentUser, timestamp: Date.now()
-            }));
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(`graficshub/${appId}/${currentProject}/docs`, JSON.stringify({
+                    content, sender: currentUser, timestamp: Date.now()
+                }));
+            }
             
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(async () => {
                 if (!user) return;
                 try {
-                    // FIXED PATH: Match the 6-segment structure for persistence
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'documents', currentProject);
                     await setDoc(docRef, {
                         content: content,
@@ -402,9 +431,11 @@
             const text = document.getElementById('chat-input').value.trim();
             if(!text && !pendingFile) return;
 
-            mqttClient.publish(`graficshub/island/chat/${currentProject}`, JSON.stringify({
-                sender: currentUser, text, file: pendingFile, reply: replyingTo, timestamp: Date.now()
-            }));
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(`graficshub/${appId}/${currentProject}/chat`, JSON.stringify({
+                    sender: currentUser, text, file: pendingFile, reply: replyingTo, timestamp: Date.now()
+                }));
+            }
 
             document.getElementById('chat-input').value = "";
             document.getElementById('chat-input').style.height = 'auto';
@@ -445,7 +476,9 @@
 
         let users = {};
         function pingPresence() {
-            if(mqttClient) mqttClient.publish(`graficshub/island/presence/${currentProject}`, JSON.stringify({ user: currentUser, ts: Date.now() }));
+            if(mqttClient && mqttClient.connected) {
+                mqttClient.publish(`graficshub/${appId}/${currentProject}/presence`, JSON.stringify({ user: currentUser, ts: Date.now() }));
+            }
         }
         function handleIncomingPresence(data) {
             users[data.user] = data.ts;
