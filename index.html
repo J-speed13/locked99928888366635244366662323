@@ -3,36 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafics Hub - MQTT Dedicated</title>
+    <title>Grafics Hub — Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;1,400&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #0f172a; font-family: 'Inter', sans-serif; color: #f8fafc; overflow-x: hidden; }
-        .gradient-bg { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); }
-        
-        .passcode-dot {
-            width: 14px; height: 14px; border-radius: 50%;
-            border: 2px solid #334155; transition: all 0.2s ease;
-        }
-        .passcode-dot.active {
-            background-color: #38bdf8; border-color: #38bdf8;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5); transform: scale(1.1);
+        :root {
+            --yellow: #fde047;
+            --purple: #a855f7;
+            --dark: #1e1b4b;
         }
 
-        .keypad-btn {
-            background: #1e293b; border: 1px solid #334155;
-            width: 64px; height: 64px; border-radius: 1rem;
-            font-weight: 800; color: #94a3b8; transition: all 0.2s;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        body { 
+            background: linear-gradient(135deg, var(--yellow) 0%, var(--purple) 100%);
+            color: var(--dark); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
-        .keypad-btn:hover { border-color: #38bdf8; color: #38bdf8; background: #111827; }
-        .keypad-btn:active { transform: scale(0.9); }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .passcode-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(30, 27, 75, 0.2);
+            transition: all 0.3s;
+        }
+        .passcode-dot.active { background: var(--dark); transform: scale(1.3); }
+        .passcode-dot.success { background: #10b981; }
+
+        .keypad-btn {
+            width: 64px; height: 64px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; border-radius: 1rem;
+            transition: all 0.2s; cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .keypad-btn:hover { background: rgba(255, 255, 255, 0.4); }
+
+        #main-app {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            height: 100vh;
+            padding: 15px;
+            gap: 15px;
+        }
+        
+        .editor-container {
+            background: white;
+            border-radius: 1.5rem;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        #doc-editor {
+            flex: 1;
+            padding: 50px;
+            font-size: 1.15rem;
+            line-height: 1.7;
+            border: none;
+            outline: none;
+            resize: none;
+            color: #334155;
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 1.5rem;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex; flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-bubble {
+            padding: 12px 16px;
+            border-radius: 1.2rem;
+            max-width: 85%;
+            font-size: 0.9rem;
+            position: relative;
+        }
+        .bubble-in { background: white; align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .bubble-out { background: var(--purple); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3); }
+
+        .media-preview img, .media-preview video {
+            border-radius: 0.75rem;
+            margin-top: 8px;
+            max-width: 100%;
+        }
+
+        .reply-box {
+            font-size: 0.75rem;
+            background: rgba(0,0,0,0.05);
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            border-left: 3px solid var(--purple);
+        }
+
+        .presence-tag {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: flex; align-items: center;
+            gap: 4px;
+            background: rgba(0,0,0,0.05);
+        }
+
+        .presence-dot { width: 6px; height: 6px; border-radius: 50%; }
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
         }
         .shake { animation: shake 0.4s ease-in-out; }
     </style>
@@ -40,250 +142,333 @@
 <body>
 
     <!-- Entry Portal -->
-    <div id="entry-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex items-center justify-center p-6">
-        <div id="entry-card" class="bg-[#1e293b] p-8 rounded-[2.5rem] border border-slate-800 w-full max-w-sm text-center shadow-2xl">
-            <div class="gradient-bg w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3">
-                <i class="fa-solid fa-satellite-dish text-white text-2xl"></i>
+    <div id="entry-screen" class="fixed inset-0 z-[1000] flex items-center justify-center bg-gradient-to-br from-yellow-300 to-purple-500 transition-all duration-700">
+        <div id="entry-card" class="glass-panel p-10 w-full max-sm:mx-4 max-w-sm text-center">
+            <h1 class="text-xs uppercase tracking-[0.4em] font-black mb-8 opacity-70">Security Protocol</h1>
+            <div class="flex justify-center gap-4 mb-10">
+                <div class="passcode-dot" id="dot-0"></div><div class="passcode-dot" id="dot-1"></div><div class="passcode-dot" id="dot-2"></div>
+                <div class="passcode-dot" id="dot-3"></div><div class="passcode-dot" id="dot-4"></div><div class="passcode-dot" id="dot-5"></div>
             </div>
-            <h1 class="text-2xl font-black uppercase tracking-tight mb-1">Authorization</h1>
-            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">Secure Access Terminal</p>
-            
-            <div class="flex justify-center gap-3 mb-8">
-                <div class="passcode-dot" id="dot-0"></div>
-                <div class="passcode-dot" id="dot-1"></div>
-                <div class="passcode-dot" id="dot-2"></div>
-                <div class="passcode-dot" id="dot-3"></div>
-                <div class="passcode-dot" id="dot-4"></div>
-                <div class="passcode-dot" id="dot-5"></div>
+            <div class="grid grid-cols-3 gap-3 mb-10 select-none">
+                <button class="keypad-btn" onclick="pressKey('1')">1</button><button class="keypad-btn" onclick="pressKey('2')">2</button><button class="keypad-btn" onclick="pressKey('3')">3</button>
+                <button class="keypad-btn" onclick="pressKey('4')">4</button><button class="keypad-btn" onclick="pressKey('5')">5</button><button class="keypad-btn" onclick="pressKey('6')">6</button>
+                <button class="keypad-btn" onclick="pressKey('7')">7</button><button class="keypad-btn" onclick="pressKey('8')">8</button><button class="keypad-btn" onclick="pressKey('9')">9</button>
+                <button class="keypad-btn opacity-50" onclick="clearKeys()">C</button><button class="keypad-btn" onclick="pressKey('0')">0</button>
+                <button class="keypad-btn text-purple-800" onclick="validateKey()"><i class="fa-solid fa-arrow-right"></i></button>
             </div>
-
-            <div class="grid grid-cols-3 gap-3 mb-8 place-items-center">
-                <button class="keypad-btn" onclick="pressKey('1')">1</button>
-                <button class="keypad-btn" onclick="pressKey('2')">2</button>
-                <button class="keypad-btn" onclick="pressKey('3')">3</button>
-                <button class="keypad-btn" onclick="pressKey('4')">4</button>
-                <button class="keypad-btn" onclick="pressKey('5')">5</button>
-                <button class="keypad-btn" onclick="pressKey('6')">6</button>
-                <button class="keypad-btn" onclick="pressKey('7')">7</button>
-                <button class="keypad-btn" onclick="pressKey('8')">8</button>
-                <button class="keypad-btn" onclick="pressKey('9')">9</button>
-                <button class="keypad-btn text-rose-500" onclick="clearKeys()"><i class="fa-solid fa-xmark"></i></button>
-                <button class="keypad-btn" onclick="pressKey('0')">0</button>
-                <button class="keypad-btn text-emerald-500" onclick="validateKey()"><i class="fa-solid fa-check"></i></button>
-            </div>
-
-            <p id="error-msg" class="text-rose-500 text-[10px] font-black uppercase hidden tracking-widest">Access Denied</p>
+            <p id="error-msg" class="text-[10px] uppercase tracking-widest hidden text-red-600 font-bold">Unauthorized</p>
         </div>
     </div>
 
     <!-- Main Workspace -->
-    <div id="main-app" class="hidden opacity-0 transition-opacity duration-1000">
-        <nav class="h-16 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 fixed w-full top-0 z-50 flex items-center justify-between px-6 lg:px-12">
-            <div class="flex items-center gap-3">
-                <div class="gradient-bg p-2 rounded-lg"><i class="fa-solid fa-layer-group text-white text-sm"></i></div>
-                <span class="font-black text-lg uppercase tracking-tighter text-sky-400">Grafics Hub</span>
-            </div>
-
-            <div class="flex items-center gap-4">
-                <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800">
-                    <div id="status-dot" class="w-2 h-2 rounded-full bg-slate-600"></div>
-                    <span id="status-text" class="text-[9px] font-black uppercase text-slate-400">Connecting...</span>
+    <div id="main-app" class="hidden opacity-0 transition-opacity duration-700">
+        <main class="editor-container">
+            <header class="px-8 py-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-file-pen text-purple-500"></i>
+                        <h3 id="project-title" class="font-bold text-sm">Loading Project...</h3>
+                    </div>
+                    <div id="presence-list" class="flex gap-2"></div>
                 </div>
-                <div class="h-8 w-[1px] bg-slate-800 mx-2"></div>
-                <div class="flex items-center gap-3">
-                    <img id="user-avatar" class="w-8 h-8 rounded-full border border-slate-700 bg-slate-800">
-                    <span id="user-name" class="text-xs font-black uppercase tracking-tight hidden sm:block"></span>
-                    <button onclick="location.reload()" class="text-slate-500 hover:text-rose-500 transition-colors">
-                        <i class="fa-solid fa-power-off text-sm"></i>
-                    </button>
-                </div>
-            </div>
-        </nav>
-
-        <div class="max-w-6xl mx-auto px-6 pt-24 pb-12 flex flex-col lg:flex-row gap-8">
-            <aside class="w-full lg:w-64 space-y-6">
-                <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
-                    <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Relay Status</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-400">Protocol</span>
-                            <span class="text-sky-400 font-bold">MQTT 5.0</span>
-                        </div>
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-400">Broker</span>
-                            <span class="text-slate-300 font-bold">EMQX Public</span>
-                        </div>
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-400">Latency</span>
-                            <span id="latency-text" class="text-emerald-400 font-bold">-- ms</span>
-                        </div>
+                
+                <div class="flex items-center gap-6">
+                    <div id="sync-status" class="text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <i class="fa-solid fa-cloud"></i> Ready
+                    </div>
+                    <div class="flex items-center gap-3 pl-4 border-l">
+                        <div id="user-initial" class="w-7 h-7 rounded-full bg-indigo-900 text-white flex items-center justify-center text-[10px] font-bold">?</div>
+                        <span id="user-name" class="text-[10px] font-bold uppercase tracking-wider opacity-60"></span>
                     </div>
                 </div>
-                <div class="p-6 rounded-3xl bg-sky-500/10 border border-sky-500/20">
-                    <p class="text-[10px] leading-relaxed text-sky-200 font-medium uppercase tracking-tight">
-                        Broadcast Cluster: <b>Public Relay</b>. All signals are transient and routed through the EMQX global broker.
-                    </p>
-                </div>
-            </aside>
+            </header>
 
-            <div class="flex-1 space-y-6">
-                <div class="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
-                    <div class="flex gap-4">
-                        <img id="input-avatar" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 shrink-0">
-                        <div class="flex-1">
-                            <textarea id="shout-input" rows="2" placeholder="Broadcast to the network..." 
-                                class="w-full bg-[#0f172a] rounded-2xl p-4 text-sm outline-none border border-transparent focus:border-sky-500 transition-all resize-none mb-4"></textarea>
-                            <div class="flex justify-end">
-                                <button id="publish-btn" onclick="sendShout()" class="gradient-bg px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all">
-                                    Send Signal
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            <textarea id="doc-editor" placeholder="Start typing together..."></textarea>
+            
+            <footer class="px-8 py-3 bg-slate-50 border-t flex justify-between items-center text-[9px] text-slate-400 uppercase tracking-widest">
+                <div id="word-count">0 words</div>
+                <div class="flex gap-4">
+                    <span id="save-indicator">Cloud Saved</span>
+                    <button onclick="location.reload()" class="hover:text-rose-500 transition-colors"><i class="fa-solid fa-power-off"></i> Logout</button>
                 </div>
+            </footer>
+        </main>
 
-                <div id="shouts-container" class="space-y-4">
-                    <!-- Live signals appear here -->
+        <section class="chat-container">
+            <header class="p-5 border-b flex justify-between items-center bg-white/50 backdrop-blur-md">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-purple-600">Team Chat</span>
+                    <div id="status-dot" class="w-2 h-2 rounded-full bg-yellow-400"></div>
+                </div>
+                <i class="fa-solid fa-comments text-gray-300"></i>
+            </header>
+            
+            <div id="chat-messages"></div>
+
+            <div id="reply-preview" class="hidden px-5 py-3 bg-purple-50 border-t text-[10px] flex justify-between items-center">
+                <span class="truncate italic text-purple-600" id="reply-content"></span>
+                <button onclick="cancelReply()" class="text-rose-500"><i class="fa-solid fa-x"></i></button>
+            </div>
+
+            <div class="p-4 bg-white border-t">
+                <div id="file-preview" class="hidden mb-3 p-2 bg-gray-100 rounded-lg text-[10px] flex justify-between items-center">
+                    <span id="file-info" class="truncate font-medium"></span>
+                    <button onclick="clearFile()" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
+                </div>
+                <div class="flex items-end gap-3 bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                    <input type="file" id="chat-file" class="hidden" onchange="handleFile(this)">
+                    <button onclick="document.getElementById('chat-file').click()" class="p-2 text-gray-400 hover:text-purple-600 transition-colors"><i class="fa-solid fa-paperclip"></i></button>
+                    <textarea id="chat-input" rows="1" class="flex-1 bg-transparent border-none outline-none text-sm resize-none py-1" placeholder="Type a message..."></textarea>
+                    <button onclick="sendChatMessage()" class="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-900 transition-all shadow-md active:scale-95"><i class="fa-solid fa-paper-plane text-xs"></i></button>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
     <script type="module">
-        // Global State
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         let currentPasscode = "";
         let currentUser = null;
+        let currentProject = ""; 
         let mqttClient = null;
-        const mqttTopic = "graficshub/public/signals";
-        const PASS_MAP = { '19837': 'James', '201411': 'Jasper' };
-        
-        // Keypad Logic
-        window.pressKey = (num) => {
-            if (currentPasscode.length < 6) {
-                currentPasscode += num;
-                renderDots();
-            }
+        let isRemoteDocUpdate = false;
+        let pendingFile = null;
+        let replyingTo = null;
+        let user = null;
+
+        const USER_CONFIG = { 
+            '19837': { name: 'James', project: 'island_project', title: 'Love Our Island Project' }, 
+            '201411': { name: 'Jasper', project: 'island_project', title: 'Love Our Island Project' }, 
+            '201414': { name: 'Jasper', project: 'homework_project', title: 'Homework Project' }, 
+            '198433': { name: 'Nikki', project: 'homework_project', title: 'Homework Project' }
         };
 
-        window.clearKeys = () => {
-            currentPasscode = "";
-            renderDots();
-            document.getElementById('error-msg').classList.add('hidden');
-        };
-
-        function renderDots() {
-            for(let i=0; i<6; i++) {
-                const dot = document.getElementById(`dot-${i}`);
-                if (i < currentPasscode.length) dot.classList.add('active');
-                else dot.classList.remove('active');
-            }
-        }
-
-        window.validateKey = () => {
-            const name = PASS_MAP[currentPasscode];
-            if (name) {
-                currentUser = name;
-                initApp();
-            } else {
-                const card = document.getElementById('entry-card');
-                const err = document.getElementById('error-msg');
-                card.classList.add('shake');
-                err.classList.remove('hidden');
-                setTimeout(() => card.classList.remove('shake'), 400);
-                currentPasscode = "";
-                renderDots();
-            }
-        };
-
-        function initApp() {
-            document.getElementById('entry-screen').classList.add('hidden');
-            const main = document.getElementById('main-app');
-            main.classList.remove('hidden');
-            setTimeout(() => main.classList.remove('opacity-0'), 10);
-
-            const avatar = `https://api.dicebear.com/7.x/identicon/svg?seed=${currentUser}`;
-            document.getElementById('user-avatar').src = avatar;
-            document.getElementById('input-avatar').src = avatar;
-            document.getElementById('user-name').textContent = currentUser;
-
-            startMQTT();
-        }
-
-        function startMQTT() {
-            updateStatus("Establishing Relay...", "amber");
-            
-            // Connect to requested broker
-            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-
-            mqttClient.on('connect', () => {
-                updateStatus("Relay Active", "emerald");
-                mqttClient.subscribe(mqttTopic);
-                
-                // Latency simulation display
-                document.getElementById('latency-text').textContent = Math.floor(Math.random() * 40 + 20) + " ms";
+        window.pressKey = (n) => { if(currentPasscode.length < 6) { currentPasscode += n; updateDots(); } };
+        window.clearKeys = () => { currentPasscode = ""; updateDots(); };
+        function updateDots() {
+            document.querySelectorAll('.passcode-dot').forEach((d, i) => {
+                d.className = `passcode-dot ${i < currentPasscode.length ? 'active' : ''}`;
             });
+        }
+        
+        window.validateKey = async () => {
+            const config = USER_CONFIG[currentPasscode];
+            if(config) {
+                currentUser = config.name;
+                currentProject = config.project;
+                document.getElementById('project-title').textContent = config.title;
+                document.querySelectorAll('.passcode-dot').forEach(d => d.classList.add('success'));
+                
+                await authenticate();
+                initWorkspaceUI();
+            } else {
+                document.getElementById('entry-card').classList.add('shake');
+                setTimeout(() => { document.getElementById('entry-card').classList.remove('shake'); clearKeys(); }, 500);
+            }
+        };
 
-            mqttClient.on('message', (topic, message) => {
-                if (topic === mqttTopic) {
-                    try {
-                        const signal = JSON.parse(message.toString());
-                        addSignalToUI(signal);
-                    } catch (e) {
-                        console.error("Payload corruption");
+        async function authenticate() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (u && currentUser) {
+                initWorkspaceContent();
+            }
+        });
+
+        function initWorkspaceUI() {
+            document.getElementById('entry-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('entry-screen').classList.add('hidden');
+                const appEl = document.getElementById('main-app');
+                appEl.classList.remove('hidden');
+                appEl.classList.add('opacity-100');
+                document.getElementById('user-name').textContent = currentUser;
+                document.getElementById('user-initial').textContent = currentUser[0];
+                connectMQTT();
+            }, 700);
+        }
+
+        function initWorkspaceContent() {
+            if (!user) return;
+            // FIXED PATH: Ensure correct 6-segment path (artifacts / {appId} / public / data / documents / {projectId})
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'documents', currentProject);
+            
+            onSnapshot(docRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (!isRemoteDocUpdate && data.content !== document.getElementById('doc-editor').value) {
+                        handleIncomingDoc({ content: data.content });
                     }
                 }
-            });
-
-            mqttClient.on('error', () => {
-                updateStatus("Relay Error", "rose");
-            });
-
-            mqttClient.on('close', () => {
-                updateStatus("Relay Offline", "slate");
-            });
+            }, (err) => console.error("Firestore sync error", err));
         }
 
-        function updateStatus(text, color) {
-            const statusText = document.getElementById('status-text');
-            const statusDot = document.getElementById('status-dot');
-            statusText.textContent = text;
-            statusDot.className = `w-2 h-2 rounded-full bg-${color}-500 animate-pulse`;
+        function connectMQTT() {
+            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+            mqttClient.on('connect', () => {
+                updateStatus('emerald');
+                const docTopic = `graficshub/island/docs/${currentProject}`;
+                const chatTopic = `graficshub/island/chat/${currentProject}`;
+                const presTopic = `graficshub/island/presence/${currentProject}`;
+                
+                mqttClient.subscribe([docTopic, chatTopic, presTopic]);
+                pingPresence();
+            });
+            mqttClient.on('message', (topic, msg) => {
+                const data = JSON.parse(msg.toString());
+                if(topic.includes('/chat/')) handleIncomingChat(data);
+                if(topic.includes('/presence/')) handleIncomingPresence(data);
+                if(topic.includes('/docs/') && data.sender !== currentUser) handleIncomingDoc(data);
+            });
+            setInterval(pingPresence, 10000);
         }
 
-        function addSignalToUI(s) {
-            const container = document.getElementById('shouts-container');
-            const date = new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        function updateStatus(color) {
+            document.getElementById('status-dot').className = `w-2 h-2 rounded-full bg-${color}-500 shadow-sm`;
+        }
+
+        const editor = document.getElementById('doc-editor');
+        let saveTimeout;
+        editor.addEventListener('input', () => {
+            if(isRemoteDocUpdate) return;
+            const content = editor.value;
             
-            const el = document.createElement('div');
-            el.className = "bg-[#1e293b] p-5 rounded-2xl border border-slate-800 flex gap-4 items-start group hover:border-sky-500/50 transition-all";
-            el.innerHTML = `
-                <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${s.username}" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700">
-                <div class="flex-1">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-black text-sky-400 uppercase tracking-widest">${s.username}</span>
-                        <span class="text-[8px] text-slate-600 font-bold uppercase tracking-tighter">${date}</span>
-                    </div>
-                    <p class="text-sm text-slate-300 font-medium">${s.text}</p>
-                </div>
-            `;
-            container.prepend(el);
-            if (container.children.length > 25) container.removeChild(container.lastChild);
+            document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Syncing';
+            
+            mqttClient.publish(`graficshub/island/docs/${currentProject}`, JSON.stringify({
+                content, sender: currentUser, timestamp: Date.now()
+            }));
+            
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                if (!user) return;
+                try {
+                    // FIXED PATH: Match the 6-segment structure for persistence
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'documents', currentProject);
+                    await setDoc(docRef, {
+                        content: content,
+                        lastModifiedBy: currentUser,
+                        timestamp: Date.now()
+                    });
+                    document.getElementById('save-indicator').textContent = "Cloud Saved";
+                } catch (e) { console.error("Save error", e); }
+            }, 1000);
+
+            document.getElementById('word-count').textContent = `${content.split(/\s+/).filter(x => x).length} words`;
+            setTimeout(() => { document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud"></i> Live'; }, 800);
+        });
+
+        function handleIncomingDoc(data) {
+            isRemoteDocUpdate = true;
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.value = data.content;
+            editor.setSelectionRange(start, end);
+            document.getElementById('word-count').textContent = `${data.content.split(/\s+/).filter(x => x).length} words`;
+            isRemoteDocUpdate = false;
         }
 
-        window.sendShout = () => {
-            const input = document.getElementById('shout-input');
-            const val = input.value.trim();
-            if (!val || !mqttClient?.connected) return;
-
-            const payload = {
-                text: val,
-                username: currentUser,
-                timestamp: Date.now()
+        window.handleFile = (input) => {
+            const file = input.files[0];
+            if(!file || file.size > 500000) return; 
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                pendingFile = { name: file.name, type: file.type.split('/')[0], data: e.target.result };
+                document.getElementById('file-preview').classList.remove('hidden');
+                document.getElementById('file-info').textContent = file.name;
             };
-
-            mqttClient.publish(mqttTopic, JSON.stringify(payload));
-            input.value = "";
+            reader.readAsDataURL(file);
         };
+
+        window.clearFile = () => { pendingFile = null; document.getElementById('file-preview').classList.add('hidden'); };
+
+        window.sendChatMessage = () => {
+            const text = document.getElementById('chat-input').value.trim();
+            if(!text && !pendingFile) return;
+
+            mqttClient.publish(`graficshub/island/chat/${currentProject}`, JSON.stringify({
+                sender: currentUser, text, file: pendingFile, reply: replyingTo, timestamp: Date.now()
+            }));
+
+            document.getElementById('chat-input').value = "";
+            document.getElementById('chat-input').style.height = 'auto';
+            clearFile(); cancelReply();
+        };
+
+        function handleIncomingChat(data) {
+            const container = document.getElementById('chat-messages');
+            const isMe = data.sender === currentUser;
+            const div = document.createElement('div');
+            div.className = `chat-bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
+            
+            let html = `<div class="text-[8px] font-black uppercase mb-1 opacity-60">${data.sender}</div>`;
+            if(data.reply) html += `<div class="reply-box">Replying to ${data.reply.sender}: ${data.reply.text}</div>`;
+            if(data.text) html += `<div class="leading-relaxed">${data.text}</div>`;
+            if(data.file) {
+                if(data.file.type === 'image') html += `<div class="media-preview"><img src="${data.file.data}"></div>`;
+                else if(data.file.type === 'video') html += `<div class="media-preview"><video src="${data.file.data}" controls></video></div>`;
+                else html += `<div class="mt-2 p-2 bg-black/5 rounded text-[10px] underline"><i class="fa-solid fa-file"></i> ${data.file.name}</div>`;
+            }
+
+            const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            html += `<div class="text-[7px] text-right mt-1 opacity-50">${time}</div>`;
+            
+            div.innerHTML = html;
+            div.ondblclick = () => setupReply(data);
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function setupReply(data) {
+            replyingTo = { sender: data.sender, text: data.text || "Media Attachment" };
+            document.getElementById('reply-preview').classList.remove('hidden');
+            document.getElementById('reply-content').textContent = `Replying to ${data.sender}: ${replyingTo.text}`;
+        }
+
+        window.cancelReply = () => { replyingTo = null; document.getElementById('reply-preview').classList.add('hidden'); };
+
+        let users = {};
+        function pingPresence() {
+            if(mqttClient) mqttClient.publish(`graficshub/island/presence/${currentProject}`, JSON.stringify({ user: currentUser, ts: Date.now() }));
+        }
+        function handleIncomingPresence(data) {
+            users[data.user] = data.ts;
+            renderPresence();
+        }
+        function renderPresence() {
+            const list = document.getElementById('presence-list');
+            list.innerHTML = '';
+            const now = Date.now();
+            Object.entries(users).forEach(([name, ts]) => {
+                if(now - ts < 30000) {
+                    const tag = document.createElement('div');
+                    tag.className = "presence-tag";
+                    tag.innerHTML = `<div class="presence-dot ${name === currentUser ? 'bg-purple-500' : 'bg-emerald-500'}"></div> ${name}`;
+                    list.appendChild(tag);
+                }
+            });
+        }
+
+        document.getElementById('chat-input').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
     </script>
 </body>
 </html>
