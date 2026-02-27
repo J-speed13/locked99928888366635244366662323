@@ -319,10 +319,9 @@
         }
 
         function connectMQTT() {
-            // Updated to use HiveMQ public broker which is generally more stable for web test clients
-            // and includes a unique clientId to prevent connection conflicts.
+            // Use EMQX public broker and includes a unique clientId to prevent connection conflicts.
             const clientId = 'mqttjs_' + Math.random().toString(16).substr(2, 8);
-            mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
                 clientId: clientId,
                 clean: true,
                 connectTimeout: 4000,
